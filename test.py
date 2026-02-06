@@ -1,31 +1,22 @@
-from QMC5883LCompass import QMC5883LCompass
+import py_qmc5883l
 import time
 
 # Инициализация компаса
-compass = QMC5883LCompass(address=0x0D)  # Адрес по умолчанию для QMC5883L
-compass.init()
+sensor = py_qmc5883l.QMC5883L()
 
 # Опционально: установить магнитное склонение для вашего местоположения
-# compass.setMagneticDeclination(degrees, minutes)
+# sensor.declination = 10.02  # пример: 10 градусов 1.2 минуты
 
 try:
     while True:
-        # Читаем данные с компаса
-        compass.read()
+        # Получаем вектор магнитного поля [X, Y, Z]
+        m = sensor.get_magnet()
         
-        # Получаем значения осей
-        x = compass.getX()
-        y = compass.getY()
-        z = compass.getZ()
-        
-        # Получаем азимут (уже включает магнитное склонение, если установлено)
-        azimuth = compass.getAzimuth()
-        
-        # Получаем направление
-        direction = compass.getDirection()
+        # Получаем азимут в градусах (уже включает магнитное склонение, если установлено)
+        bearing = sensor.get_bearing()
         
         # Выводим данные, перезаписывая строку
-        print(f"Азимут: {azimuth}° ({direction}) | X: {x} | Y: {y} | Z: {z}", end='\r', flush=True)
+        print(f"Азимут: {bearing:.2f}° | X: {m[0]} | Y: {m[1]} | Z: {m[2]}", end='\r', flush=True)
         
         time.sleep(0.1)
 
