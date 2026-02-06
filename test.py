@@ -1,26 +1,28 @@
-import py_qmc5883l
+from qmc5883l import QMC5883L
+import math
 import time
-import logging
 
-# Отключаем предупреждения от библиотеки py_qmc5883l
-logging.basicConfig(level=logging.ERROR)
-
-# Инициализация компаса с указанием I2C адреса 0x2C и диапазона 8 Гаусс
-sensor = py_qmc5883l.QMC5883L(address=0x2C, output_range=py_qmc5883l.RNG_8G)
-
-# Опционально: установить магнитное склонение для вашего местоположения
-# sensor.declination = 10.02  # пример: 10 градусов 1.2 минуты
+sensor = QMC5883L(0x2C)
 
 try:
     while True:
-        # Получаем вектор магнитного поля [X, Y, Z] (используем get_magnet_raw для получения всех трёх значений)
-        m = sensor.get_magnet_raw()
+        # Получаем вектор магнитного поля
+        m = sensor.get_magnet()
         
-        # Получаем азимут в градусах (уже включает магнитное склонение, если установлено)
-        bearing = sensor.get_bearing()
+        angle_rad = math.atan2(m[0], m[1])
         
-        # Выводим данные, перезаписывая строку
-        print(f"Азимут: {bearing:.2f}° | X: {m[0]} | Y: {m[1]} | Z: {m[2]}", end='\r', flush=True)
+        # Конвертируем в градусы
+        angle_deg = math.degrees(angle_rad)
+        
+        # Нормализуем в диапазон 0-360°
+        if angle_deg < 0:
+            angle_deg += 360
+        
+        # Добавляем магнитное склонение
+        print(angle_deg)
+        print(m[0])
+        print(m[1])
+        print(m[2])
         
         time.sleep(0.1)
 
