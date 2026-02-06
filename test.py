@@ -6,6 +6,7 @@ from collections import deque
 sensor = QMC5883L(0x2C)
 
 # Буферы для сглаживания значений магнитометра (скользящее среднее)
+buffer_size = 20
 x_buffer = deque(maxlen=10)  # Увеличил размер для лучшего сглаживания
 y_buffer = deque(maxlen=10)
 z_buffer = deque(maxlen=10)
@@ -27,6 +28,11 @@ try:
         x_buffer.append(m[0])
         y_buffer.append(m[1])
         z_buffer.append(m[2])
+        if (len(x_buffer) >= buffer_size):
+            x_buffer=x_buffer[1:]
+            y_buffer=y_buffer[1:]
+            z_buffer=z_buffer[1:]
+
         
         # Вычисляем сглаженные значения
         x_smooth = sum(x_buffer) / len(x_buffer)
