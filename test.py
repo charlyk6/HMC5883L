@@ -8,7 +8,9 @@ try:
     while True:
         # Получаем вектор магнитного поля
         m = sensor.get_magnet()
-        
+        m[0]+=8
+        m[1]+=8
+        m[2]+=8
         angle_rad = math.atan2(m[0], m[1])
         
         # Конвертируем в градусы
@@ -19,10 +21,7 @@ try:
             angle_deg += 360
         
         # Добавляем магнитное склонение
-        print(angle_deg)
-        print(m[0])
-        print(m[1])
-        print(m[2])
+        print(f"Угол: {angle_deg:.2f}° | X: {m[0]:.2f} | Y: {m[1]:.2f} | Z: {m[2]:.2f}", end='\r', flush=True)
         
         time.sleep(0.1)
 
