@@ -5,11 +5,10 @@ from collections import deque
 
 sensor = QMC5883L(0x2C)
 
-# Буферы для сглаживания (скользящее среднее)
-angle_buffer = deque(maxlen=10)  # Храним последние 10 значений угла
-x_buffer = deque(maxlen=5)
-y_buffer = deque(maxlen=5)
-z_buffer = deque(maxlen=5)
+# Буферы для сглаживания значений магнитометра (скользящее среднее)
+x_buffer = deque(maxlen=10)  # Увеличил размер для лучшего сглаживания
+y_buffer = deque(maxlen=10)
+z_buffer = deque(maxlen=10)
 
 def normalize_angle(angle):
     """Нормализует угол в диапазон 0-360°"""
@@ -18,34 +17,6 @@ def normalize_angle(angle):
     while angle >= 360:
         angle -= 360
     return angle
-
-def smooth_angle(new_angle, buffer):
-    """Сглаживает угол с учетом циклической природы (0° и 360° рядом)"""
-    if len(buffer) == 0:
-        buffer.append(new_angle)
-        return new_angle
-    
-    # Находим ближайшее значение с учетом циклической природы
-    last_angle = buffer[-1]
-    diff = new_angle - last_angle
-    
-    # Корректируем разницу, если она больше 180° (переход через 0/360)
-    if diff > 180:
-        diff -= 360
-    elif diff < -180:
-        diff += 360
-    
-    adjusted_angle = last_angle + diff
-    adjusted_angle = normalize_angle(adjusted_angle)
-    buffer.append(adjusted_angle)
-    
-    # Вычисляем среднее значение
-    angles = list(buffer)
-    # Учитываем циклическую природу при вычислении среднего
-    sin_sum = sum(math.sin(math.radians(a)) for a in angles)
-    cos_sum = sum(math.cos(math.radians(a)) for a in angles)
-    avg_angle = math.degrees(math.atan2(sin_sum / len(angles), cos_sum / len(angles)))
-    return normalize_angle(avg_angle)
 
 try:
     while True:
@@ -62,18 +33,16 @@ try:
         y_smooth = sum(y_buffer) / len(y_buffer)
         z_smooth = sum(z_buffer) / len(z_buffer)
         
-        # Вычисляем угол
-        angle_rad = math.atan2(x_smooth, y_smooth)
+        # Вычисляем угол из сглаженных значений X и Y
+        # atan2(y, x) дает угол от оси X против часовой стрелки
+        angle_rad = math.atan2(y_smooth, x_smooth)
         angle_deg = math.degrees(angle_rad)
         angle_deg = normalize_angle(angle_deg)
         
-        # Сглаживаем угол
-        angle_smooth = smooth_angle(angle_deg, angle_buffer)
+        # Выводим данные (угол вычисляется из уже сглаженных значений, поэтому дополнительное сглаживание не нужно)
+        print(f"Угол: {angle_deg:.2f}° | X: {int(x_smooth)} | Y: {int(y_smooth)} | Z: {int(z_smooth)}", end='\r', flush=True)
         
-        # Выводим данные
-        print(f"Угол: {angle_smooth:.2f}° | X: {int(x_smooth)} | Y: {int(y_smooth)} | Z: {int(z_smooth)}", end='\r', flush=True)
-        
-        time.sleep(0.1)
+        time.sleep(0.05)
 
 except KeyboardInterrupt:
     print("\n\nЗавершено")
