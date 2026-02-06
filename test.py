@@ -1,5 +1,9 @@
 import py_qmc5883l
 import time
+import logging
+
+# Отключаем предупреждения от библиотеки py_qmc5883l
+logging.basicConfig(level=logging.ERROR)
 
 # Инициализация компаса с указанием I2C адреса 0x2C и диапазона 8 Гаусс
 sensor = py_qmc5883l.QMC5883L(address=0x2C, output_range=py_qmc5883l.RNG_8G)
