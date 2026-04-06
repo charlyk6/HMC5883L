@@ -40,36 +40,29 @@ class RPiI2C:
         self.bus.close()
 
 
-def normalize_angle_deg(angle):
+def normalize_angle(angle):
     angle %= 360.0
     if angle < 0:
         angle += 360.0
     return angle
 
 
-def smooth_angle_deg(prev_angle, new_angle, alpha=0.15):
-    if prev_angle is None:
-        return new_angle
+def smooth(prev, new, alpha=0.15):
+    if prev is None:
+        return new
 
-    delta = new_angle - prev_angle
-    while delta > 180.0:
-        delta -= 360.0
-    while delta < -180.0:
-        delta += 360.0
+    delta = new - prev
+    while delta > 180:
+        delta -= 360
+    while delta < -180:
+        delta += 360
 
-    result = prev_angle + alpha * delta
-    return normalize_angle_deg(result)
+    return normalize_angle(prev + alpha * delta)
 
 
-def load_calibration(filename=CALIBRATION_FILE):
-    with open(filename, "r", encoding="utf-8") as f:
+def load_calibration():
+    with open(CALIBRATION_FILE, "r") as f:
         return json.load(f)
-
-
-def apply_calibration(x, y, calib):
-    x_corr = (x - calib["offset_x"]) * calib["scale_x"]
-    y_corr = (y - calib["offset_y"]) * calib["scale_y"]
-    return x_corr, y_corr
 
 
 def main():
@@ -78,56 +71,35 @@ def main():
 
     calib = load_calibration()
 
-    offset_x = calib["offset_x"]
-    offset_y = calib["offset_y"]
-    scale_x = calib["scale_x"]
-    scale_y = calib["scale_y"]
+    sm1 = sm2 = sm3 = sm4 = None
 
-    # Пока оставляем без магнитного склонения
-    declination_deg = 0.0
-
-    # Если направление будет неправильным, попробуй заменить формулу:
-    # atan2(x_corr, y_corr)
-    # atan2(-y_corr, x_corr)
-    # atan2(y_corr, -x_corr)
-    yaw_formula = "atan2(y_corr, x_corr)"
-
-    smoothed_yaw = None
-
-    print("QMC5883P calibrated yaw output started. Ctrl+C to stop.\n")
-    print("Loaded calibration:")
-    print(f"offset_x={offset_x:.6f}")
-    print(f"offset_y={offset_y:.6f}")
-    print(f"scale_x ={scale_x:.6f}")
-    print(f"scale_y ={scale_y:.6f}")
-    print()
+    print("All yaw formulas (calibrated). Ctrl+C to stop.\n")
 
     try:
         while True:
             x, y, z, _ = sensor.read_scaled()
 
-            x_corr, y_corr = apply_calibration(x, y, calib)
+            # --- калибровка ---
+            x_corr = (x - calib["offset_x"]) * calib["scale_x"]
+            y_corr = (y - calib["offset_y"]) * calib["scale_y"]
 
-            if yaw_formula == "atan2(y_corr, x_corr)":
-                yaw_deg = math.degrees(math.atan2(y_corr, x_corr))
-            elif yaw_formula == "atan2(x_corr, y_corr)":
-                yaw_deg = math.degrees(math.atan2(x_corr, y_corr))
-            elif yaw_formula == "atan2(-y_corr, x_corr)":
-                yaw_deg = math.degrees(math.atan2(-y_corr, x_corr))
-            elif yaw_formula == "atan2(y_corr, -x_corr)":
-                yaw_deg = math.degrees(math.atan2(y_corr, -x_corr))
-            else:
-                yaw_deg = math.degrees(math.atan2(y_corr, x_corr))
+            # --- 4 формулы ---
+            yaw1 = normalize_angle(math.degrees(math.atan2(y_corr, x_corr)))
+            yaw2 = normalize_angle(math.degrees(math.atan2(x_corr, y_corr)))
+            yaw3 = normalize_angle(math.degrees(math.atan2(-y_corr, x_corr)))
+            yaw4 = normalize_angle(math.degrees(math.atan2(y_corr, -x_corr)))
 
-            yaw_deg += declination_deg
-            yaw_deg = normalize_angle_deg(yaw_deg)
-            smoothed_yaw = smooth_angle_deg(smoothed_yaw, yaw_deg, alpha=0.15)
+            # --- сглаживание ---
+            sm1 = smooth(sm1, yaw1)
+            sm2 = smooth(sm2, yaw2)
+            sm3 = smooth(sm3, yaw3)
+            sm4 = smooth(sm4, yaw4)
 
             print(
-                f"Yaw={smoothed_yaw:7.2f}°   "
-                f"Xc={x_corr:8.4f}   "
-                f"Yc={y_corr:8.4f}   "
-                f"Z={z:8.4f}"
+                f"Y1={sm1:7.2f}°  "
+                f"Y2={sm2:7.2f}°  "
+                f"Y3={sm3:7.2f}°  "
+                f"Y4={sm4:7.2f}°"
             )
 
             time.sleep(0.1)
